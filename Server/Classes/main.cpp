@@ -11,47 +11,41 @@
 
 #include "Constants.h"
 #include "RandomHelper.h"
+#include "ConfigManager.h"
 
 #define PORT 8080
 
 // Driver code
 int main() {
-    int sockfd;
-    uint8_t buffer[MAX_BUFFER_SIZE];
-    struct sockaddr_in servaddr, cliaddr;
-    
-    // Creating socket file descriptor
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 )
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0)
     {
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
-    
+
+    sockaddr_in servaddr, cliaddr;
     memset(&servaddr, 0, sizeof(servaddr));
     memset(&cliaddr, 0, sizeof(cliaddr));
-    
-    // Filling server information
-    servaddr.sin_family = AF_INET; // IPv4
+    servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(PORT);
     
     // Bind the socket with the server address
-    if ( bind(sockfd, reinterpret_cast<sockaddr*>(&servaddr), sizeof(servaddr)) < 0 )
+    if (bind(sockfd, reinterpret_cast<sockaddr*>(&servaddr), sizeof(servaddr)) < 0)
     {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
     
     socklen_t len = 0;
-    int n;
-
-    len = sizeof(cliaddr); //len is value/result
-
+    len = sizeof(cliaddr);
+    uint8_t buffer[MAX_BUFFER_SIZE];
+    ConfigManager::getInstance()->parseConfig("server_config.txt");
+    auto value = ConfigManager::getInstance()->getConfigValue("doubles_count_to_send");
     while (1)
     {
-        n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&cliaddr), &len);
-        buffer[n] = '\0';
-        printf("Client : %s\n", buffer);
+        auto n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&cliaddr), &len);
         
         sDoublesPacket packet;
         packet.packetIndex = 101;
@@ -74,9 +68,7 @@ int main() {
             b += sizeof(d);
         }
         auto toSend = b - buffer;
-        std::cout << toSend << "bytes" << std::endl;
         ssize_t sentBytes = sendto(sockfd, buffer, toSend, /*MSG_CONFIRM*/0, reinterpret_cast<sockaddr*>(&cliaddr), len);
-        std::cout << sentBytes << " bytes sent." << std::endl;
         if (!sentBytes)
         {
             break;
