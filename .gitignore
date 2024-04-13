@@ -1,7 +1,9 @@
 .vscode
 builds-unix/CMakeCache.txt
 builds-unix/CMakeFiles
+builds-unix/cmake_install.cmake
 builds-unix/Makefile
+builds-unix/SharedClasses
 .DS_Store
 */.DS_Store
 */*/.DS_Store
