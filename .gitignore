@@ -2,3 +2,6 @@
 builds-unix/CMakeCache.txt
 builds-unix/CMakeFiles
 builds-unix/Makefile
+.DS_Store
+*/.DS_Store
+*/*/.DS_Store
