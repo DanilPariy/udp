@@ -1,0 +1,3 @@
+address=192.0.0.1
+port=8080
+double=10.67
