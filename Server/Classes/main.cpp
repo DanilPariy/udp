@@ -9,18 +9,20 @@
 #include <netinet/in.h>
 #include <iostream>
 
-#define PORT     8080
-#define MAXLINE 1024
+#include "Constants.h"
+#include "RandomHelper.h"
+
+#define PORT 8080
 
 // Driver code
 int main() {
     int sockfd;
-    char buffer[MAXLINE];
-    const char *hello = "Hello from server";
+    uint8_t buffer[MAX_BUFFER_SIZE];
     struct sockaddr_in servaddr, cliaddr;
     
     // Creating socket file descriptor
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 )
+    {
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
@@ -34,8 +36,7 @@ int main() {
     servaddr.sin_port = htons(PORT);
     
     // Bind the socket with the server address
-    if ( bind(sockfd, (const struct sockaddr *)&servaddr,
-            sizeof(servaddr)) < 0 )
+    if ( bind(sockfd, reinterpret_cast<sockaddr*>(&servaddr), sizeof(servaddr)) < 0 )
     {
         perror("bind failed");
         exit(EXIT_FAILURE);
@@ -46,15 +47,41 @@ int main() {
 
     len = sizeof(cliaddr); //len is value/result
 
-    n = recvfrom(sockfd, (char *)buffer, MAXLINE,
-                MSG_WAITALL, ( struct sockaddr *) &cliaddr,
-                &len);
-    buffer[n] = '\0';
-    printf("Client : %s\n", buffer);
-    sendto(sockfd, (const char *)hello, strlen(hello),
-        /*MSG_CONFIRM*/0, (const struct sockaddr *) &cliaddr,
-            len);
-    std::cout<<"Hello message sent."<<std::endl;
+    while (1)
+    {
+        n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&cliaddr), &len);
+        buffer[n] = '\0';
+        printf("Client : %s\n", buffer);
+        
+        sDoublesPacket packet;
+        packet.packetIndex = 101;
+        packet.doubles.reserve(MAX_DOUBLES_COUNT);
+        for (int i = 0; i < MAX_DOUBLES_COUNT; i++)
+        {
+            auto generatedDouble = RandomHelper::random<double>(-100, 100);
+            packet.doubles.push_back(generatedDouble);
+        }
+
+        uint8_t * b = buffer;
+
+        uint32_t neDist = htonl(packet.packetIndex);
+        memcpy(b, &neDist, sizeof(neDist));
+        b += sizeof(neDist);
+        
+        for (const auto& d: packet.doubles)
+        {
+            memcpy(b, &d, sizeof(d));
+            b += sizeof(d);
+        }
+        auto toSend = b - buffer;
+        std::cout << toSend << "bytes" << std::endl;
+        ssize_t sentBytes = sendto(sockfd, buffer, toSend, /*MSG_CONFIRM*/0, reinterpret_cast<sockaddr*>(&cliaddr), len);
+        std::cout << sentBytes << " bytes sent." << std::endl;
+        if (!sentBytes)
+        {
+            break;
+        }
+    }
     
     return 0;
 }

@@ -1,4 +1,4 @@
-# Install script for directory: /Users/danil/Workspaces/udp/Client
+# Install script for directory: /Users/danil/Workspaces/udp
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/Users/danil/Workspaces/udp/Client/build-unix/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/Users/danil/Workspaces/udp/builds-unix/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

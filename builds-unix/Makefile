@@ -57,10 +57,10 @@ RM = /opt/homebrew/Cellar/cmake/3.27.7/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /Users/danil/Workspaces/udp/Client
+CMAKE_SOURCE_DIR = /Users/danil/Workspaces/udp
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /Users/danil/Workspaces/udp/Client/build-unix
+CMAKE_BINARY_DIR = /Users/danil/Workspaces/udp/builds-unix
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -87,9 +87,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/danil/Workspaces/udp/Client/build-unix/CMakeFiles /Users/danil/Workspaces/udp/Client/build-unix//CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/danil/Workspaces/udp/builds-unix/CMakeFiles /Users/danil/Workspaces/udp/builds-unix//CMakeFiles/progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/danil/Workspaces/udp/Client/build-unix/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/danil/Workspaces/udp/builds-unix/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -129,29 +129,66 @@ client/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
 .PHONY : client/fast
 
-Classes/main.o: Classes/main.cpp.o
-.PHONY : Classes/main.o
+#=============================================================================
+# Target rules for targets named server
+
+# Build rule for target.
+server: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 server
+.PHONY : server
+
+# fast build rule for target.
+server/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
+.PHONY : server/fast
+
+Client/Classes/main.o: Client/Classes/main.cpp.o
+.PHONY : Client/Classes/main.o
 
 # target to build an object file
-Classes/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/Classes/main.cpp.o
-.PHONY : Classes/main.cpp.o
+Client/Classes/main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/Client/Classes/main.cpp.o
+.PHONY : Client/Classes/main.cpp.o
 
-Classes/main.i: Classes/main.cpp.i
-.PHONY : Classes/main.i
+Client/Classes/main.i: Client/Classes/main.cpp.i
+.PHONY : Client/Classes/main.i
 
 # target to preprocess a source file
-Classes/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/Classes/main.cpp.i
-.PHONY : Classes/main.cpp.i
+Client/Classes/main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/Client/Classes/main.cpp.i
+.PHONY : Client/Classes/main.cpp.i
 
-Classes/main.s: Classes/main.cpp.s
-.PHONY : Classes/main.s
+Client/Classes/main.s: Client/Classes/main.cpp.s
+.PHONY : Client/Classes/main.s
 
 # target to generate assembly for a file
-Classes/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/Classes/main.cpp.s
-.PHONY : Classes/main.cpp.s
+Client/Classes/main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/Client/Classes/main.cpp.s
+.PHONY : Client/Classes/main.cpp.s
+
+Server/Classes/main.o: Server/Classes/main.cpp.o
+.PHONY : Server/Classes/main.o
+
+# target to build an object file
+Server/Classes/main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/Server/Classes/main.cpp.o
+.PHONY : Server/Classes/main.cpp.o
+
+Server/Classes/main.i: Server/Classes/main.cpp.i
+.PHONY : Server/Classes/main.i
+
+# target to preprocess a source file
+Server/Classes/main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/Server/Classes/main.cpp.i
+.PHONY : Server/Classes/main.cpp.i
+
+Server/Classes/main.s: Server/Classes/main.cpp.s
+.PHONY : Server/Classes/main.s
+
+# target to generate assembly for a file
+Server/Classes/main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/Server/Classes/main.cpp.s
+.PHONY : Server/Classes/main.cpp.s
 
 # Help Target
 help:
@@ -162,9 +199,13 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... client"
-	@echo "... Classes/main.o"
-	@echo "... Classes/main.i"
-	@echo "... Classes/main.s"
+	@echo "... server"
+	@echo "... Client/Classes/main.o"
+	@echo "... Client/Classes/main.i"
+	@echo "... Client/Classes/main.s"
+	@echo "... Server/Classes/main.o"
+	@echo "... Server/Classes/main.i"
+	@echo "... Server/Classes/main.s"
 .PHONY : help
 
 

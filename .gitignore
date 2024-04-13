@@ -1,0 +1,4 @@
+.vscode
+builds-unix/CMakeCache.txt
+builds-unix/CMakeFiles
+builds-unix/Makefile
