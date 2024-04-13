@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 set (CMAKE_CXX_STANDARD 17)
 
-#project name
 project (udp)
 
 include_directories(/Library/Developer/CommandLineTools/usr/include)
