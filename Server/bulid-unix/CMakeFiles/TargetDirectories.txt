@@ -1,3 +1,0 @@
-/Users/danil/Workspaces/udp/Server/bulid-unix/CMakeFiles/server.dir
-/Users/danil/Workspaces/udp/Server/bulid-unix/CMakeFiles/edit_cache.dir
-/Users/danil/Workspaces/udp/Server/bulid-unix/CMakeFiles/rebuild_cache.dir
