@@ -1,5 +1,4 @@
 // Client side implementation of UDP client-server model
-#include <bits/stdc++.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -13,8 +12,6 @@
 #include "BufferParser.h"
 #include "Types.h"
 #include "ConfigManager.h"
-   
-#define PORT 8080
 
 void sendData()
 {
@@ -44,15 +41,17 @@ int main()
         exit(EXIT_FAILURE);
     }
    
+    ConfigManager::getInstance()->parseConfig("client_config.txt");
+    auto port = ConfigManager::getInstance()->getConfigValue("port");
+
     sockaddr_in servaddr;
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(PORT);
+    servaddr.sin_port = htons(stoi(port.value_or("8080")));
     servaddr.sin_addr.s_addr = INADDR_ANY;
        
        
     uint8_t buffer[MAX_BUFFER_SIZE];
-    ConfigManager::getInstance()->parseConfig("client_config.txt");
     auto doublesRangeMax = ConfigManager::getInstance()->getConfigValue("doubles_range_max");
     
     auto sendRes = sendDoublesRequest(socketResult, buffer, servaddr, stod(doublesRangeMax.value_or("100")));

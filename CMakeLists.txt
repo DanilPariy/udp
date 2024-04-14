@@ -3,7 +3,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 project (udp)
 
-include_directories(/Library/Developer/CommandLineTools/usr/include)
+#include_directories(/Library/Developer/CommandLineTools/usr/include)
 include_directories(SharedClasses)
 
 add_subdirectory(SharedClasses)
@@ -11,5 +11,5 @@ add_subdirectory(SharedClasses)
 add_executable(client Client/Classes/main.cpp)
 target_link_libraries(client PRIVATE ConfigManager)
 
-add_executable(server Server/Classes/main.cpp)
+add_executable(server Server/Classes/main.cpp Server/Classes/ServerManager.cpp)
 target_link_libraries(server PRIVATE ConfigManager)
