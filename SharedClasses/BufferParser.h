@@ -34,10 +34,8 @@ public:
 
         if (firstInvalidByte - readPtr >= sizeof(packet.packetIndex))
         {
-            uint32_t neDist;
-            memcpy(&neDist, readPtr, sizeof(neDist));
-            readPtr += sizeof(neDist);
-            packet.packetIndex = neDist;
+            memcpy(&packet.packetIndex, readPtr, sizeof(packet.packetIndex));
+            readPtr += sizeof(packet.packetIndex);
 
             while (firstInvalidByte - readPtr >= sizeof(double))
             {
