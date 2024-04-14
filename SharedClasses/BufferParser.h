@@ -7,22 +7,37 @@ class BufferParser
 {
 public:
     template<typename ParseDataType>
-    static ParseDataType parseBuffer(const uint8_t* aBuffer, unsigned aBytesAvailable);
+    static std::pair<ParseDataType, ssize_t> parseBuffer(uint8_t* aBuffer, ssize_t aBytesAvailable)
+    {
+        ParseDataType result;
+
+        const uint8_t * readPtr = aBuffer;
+        const uint8_t * firstInvalidByte = aBuffer + aBytesAvailable;
+
+        if (firstInvalidByte - readPtr >= sizeof(result))
+        {
+            memcpy(&result, readPtr, sizeof(result));
+            readPtr += sizeof(result);
+            aBytesAvailable -= sizeof(result);
+        }
+
+        return std::make_pair(result, readPtr - aBuffer);
+    }
 
     template<>
-    sDoublesPacket parseBuffer(const uint8_t* aBuffer, unsigned aBytesAvailable)
+    std::pair<sDoublesPacket, ssize_t> parseBuffer(uint8_t* aBuffer, ssize_t aBytesAvailable)
     {
         sDoublesPacket packet;
 
         const uint8_t * readPtr = aBuffer;
-        const uint8_t * firstInvalidByte = aBuffer + aBytesAvailable;  // pointer to the first invalid byte
+        const uint8_t * firstInvalidByte = aBuffer + aBytesAvailable;
 
         if (firstInvalidByte - readPtr >= sizeof(packet.packetIndex))
         {
             uint32_t neDist;
             memcpy(&neDist, readPtr, sizeof(neDist));
             readPtr += sizeof(neDist);
-            packet.packetIndex = ntohl(neDist);  // convert from big-endian back to local-endian
+            packet.packetIndex = neDist;
 
             while (firstInvalidByte - readPtr >= sizeof(double))
             {
@@ -33,6 +48,6 @@ public:
             }
         }
 
-        return std::move(packet);
+        return std::make_pair(packet, readPtr - aBuffer);
     };
 };

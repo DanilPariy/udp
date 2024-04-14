@@ -12,3 +12,11 @@ struct sDoublesPacket
     {
     }
 };
+
+enum class ePacketType
+{
+    UNDEFINED = 0
+    , CLIENT_AKS_DOUBLES
+    , SERVER_SENDS_DOUBLES_PACKET
+    , CLIENT_SENDS_DOUBLES_PACKET_CONFIRMATION
+};
