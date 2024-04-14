@@ -34,8 +34,8 @@ ssize_t sendDoublesRequest(int aSocket, uint8_t* aBuffer, const sockaddr_in& aSe
 
 int main()
 {
-    int socketResult;
-    if ( (socketResult = socket(AF_INET, SOCK_DGRAM, 0)) < 0 )
+    int socketResult = socket(AF_INET, SOCK_DGRAM, 0);
+    if (socketResult < 0)
     {
         perror("socket creation failed");
         exit(EXIT_FAILURE);
