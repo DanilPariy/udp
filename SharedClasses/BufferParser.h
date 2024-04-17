@@ -6,45 +6,39 @@ class BufferParser
 {
 public:
     template<typename ParseDataType>
-    static std::pair<ParseDataType, ssize_t> parseBuffer(uint8_t* aBuffer, ssize_t aBytesAvailable)
+    static std::pair<ParseDataType, ssize_t> parseValueFromBuffer(uint8_t* aBuffer, ssize_t aBytesAvailable)
     {
         ParseDataType result;
 
         const uint8_t * readPtr = aBuffer;
-        const uint8_t * firstInvalidByte = aBuffer + aBytesAvailable;
 
-        if (firstInvalidByte - readPtr >= sizeof(result))
+        if (aBytesAvailable >= sizeof(ParseDataType))
         {
-            memcpy(&result, readPtr, sizeof(result));
-            readPtr += sizeof(result);
-            aBytesAvailable -= sizeof(result);
+            memcpy(&result, readPtr, sizeof(ParseDataType));
+            readPtr += sizeof(ParseDataType);
+            aBytesAvailable -= sizeof(ParseDataType);
         }
 
         return std::make_pair(result, readPtr - aBuffer);
     }
 
-    template<>
-    std::pair<sDoublesPacket, ssize_t> parseBuffer(uint8_t* aBuffer, ssize_t aBytesAvailable)
+    template<typename VectorValueType>
+    static std::pair<std::vector<VectorValueType>, ssize_t> parseVectorFromBuffer(uint8_t* aBuffer, ssize_t aBytesAvailable)
     {
-        sDoublesPacket packet;
+        std::vector<VectorValueType> result;
 
         const uint8_t * readPtr = aBuffer;
-        const uint8_t * firstInvalidByte = aBuffer + aBytesAvailable;
 
-        if (firstInvalidByte - readPtr >= sizeof(packet.packetIndex))
+        if (aBytesAvailable >= sizeof(VectorValueType))
         {
-            memcpy(&packet.packetIndex, readPtr, sizeof(packet.packetIndex));
-            readPtr += sizeof(packet.packetIndex);
-
-            while (firstInvalidByte - readPtr >= sizeof(double))
-            {
-                double d;
-                memcpy(&d, readPtr, sizeof(d));
-                readPtr += sizeof(double);
-                packet.doubles.push_back(d);
-            }
+            auto elemsCanRead = aBytesAvailable / sizeof(VectorValueType);
+            auto bytesCanRead = elemsCanRead * sizeof(VectorValueType);
+            result.resize(elemsCanRead);
+            std::memcpy(result.data(), readPtr, bytesCanRead);
+            readPtr += bytesCanRead;
+            aBytesAvailable -= bytesCanRead;
         }
 
-        return std::make_pair(packet, readPtr - aBuffer);
+        return std::make_pair(result, readPtr - aBuffer);
     };
 };

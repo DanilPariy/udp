@@ -1,5 +1,8 @@
 #include "ServerManager.h"
 
+#include <set>
+#include <thread>
+
 #include "RandomHelper.h"
 #include "ConfigManager.h"
 #include "BufferParser.h"
@@ -32,6 +35,10 @@ ServerManager::~ServerManager()
     {
         close(mSocket);
     }
+    if (mResendThread.joinable())
+    {
+        mResendThread.join();
+    }
 }
 
 ServerManager* ServerManager::getInstance()
@@ -49,13 +56,15 @@ bool ServerManager::openSocket()
     }
 
     ConfigManager::getInstance()->parseConfig("server_config.txt");
+    const auto configAddress = ConfigManager::getInstance()->getConfigValue("address");
     auto port = ConfigManager::getInstance()->getConfigValue("port");
 
     sockaddr_in servaddr;
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = INADDR_ANY;
     servaddr.sin_port = htons(stoi(port.value_or("8080")));
+    auto address = configAddress.value_or("0.0.0.0");
+    inet_pton(AF_INET, address.c_str(), &servaddr.sin_addr);
 
     if (bind(mSocket, reinterpret_cast<sockaddr*>(&servaddr), sizeof(servaddr)) < 0)
     {
@@ -71,6 +80,8 @@ void ServerManager::startSocket()
     memset(&cliaddr, 0, sizeof(cliaddr));
     socklen_t len = sizeof(cliaddr);
 
+    mResendThread = std::thread(&ServerManager::backgroundResending, this);
+
     while (true)
     {
         auto bytesReceived = recvfrom(mSocket, mBuffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&cliaddr), &len);
@@ -80,33 +91,71 @@ void ServerManager::startSocket()
 
 void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuffer, ssize_t aBytesAvailable)
 {
-    auto parseResult = BufferParser::parseBuffer<uint8_t>(aBuffer, aBytesAvailable);
-
-    auto packetTypeCasted = static_cast<ePacketType>(parseResult.first);
-    auto bytesRead = parseResult.second;
-
-    aBuffer += bytesRead;
+    uint8_t* readPtr = aBuffer;
+    auto parseIdResult = BufferParser::parseValueFromBuffer<PacketIdType>(readPtr, aBytesAvailable);
+    auto bytesRead = parseIdResult.second;
+    readPtr += bytesRead;
     aBytesAvailable -= bytesRead;
 
-    switch (packetTypeCasted)
+    auto parseMessageTypeResult = BufferParser::parseValueFromBuffer<CastPacketType>(readPtr, aBytesAvailable);
+    bytesRead = parseMessageTypeResult.second;
+    readPtr += bytesRead;
+    aBytesAvailable -= bytesRead;
+
+    auto casted = static_cast<eClientMessageType>(parseMessageTypeResult.first);
+
+    switch (casted)
     {
-        case ePacketType::CLIENT_AKS_DOUBLES:
+        case eClientMessageType::DOUBLES_RANGE_MAX:
         {
-            auto askDoublesResult = BufferParser::parseBuffer<double>(aBuffer, aBytesAvailable);
+            auto askDoublesResult = BufferParser::parseValueFromBuffer<double>(readPtr, aBytesAvailable);
             makeClientData(aClientUniqueID, askDoublesResult.first);
+
+            std::lock_guard<std::mutex> guard(mClientsMutex);
             auto findIt = mClientsData.find(aClientUniqueID);
             if (findIt != mClientsData.end())
             {
-                for (auto i = 0; i < findIt->second.size(); i++)
+                findIt->second.lastActiveTimeStamp = std::chrono::steady_clock::now();
+                for (const auto packet: findIt->second.clientPackets)
                 {
-                    sendPacketToClient(aClientUniqueID, i);
+                    sendPacketToClient(aClientUniqueID, packet);
                 }
             }
             break;
         }
-        case ePacketType::CLIENT_SENDS_DOUBLES_PACKET_CONFIRMATION:
+        case eClientMessageType::PACKET_RECEIVED_CONFIRMATION:
         {
-            auto confirmationResult = BufferParser::parseBuffer<uint32_t>(aBuffer, aBytesAvailable);
+            std::lock_guard<std::mutex> guard(mClientsMutex);
+            auto packetIndex = parseIdResult.first;
+            auto findIt = mClientsData.find(aClientUniqueID);
+            if (findIt != mClientsData.end())
+            {
+                findIt->second.lastActiveTimeStamp = std::chrono::steady_clock::now();
+                auto& clientPackets = findIt->second.clientPackets;
+                if (0 <= packetIndex && packetIndex < clientPackets.size())
+                {
+                    auto packet = clientPackets[packetIndex];
+                    if (packet)
+                    {
+                        packet->setIsReceived(true);
+                    }
+                }
+
+                auto findNotReceived = std::find_if(clientPackets.begin(), clientPackets.end(),
+                    [](const PacketBase<eServerMessageType>* aPacket){ return aPacket && !aPacket->isReceived(); }
+                );
+                if (findNotReceived == clientPackets.end())
+                {
+                    for (auto packet: clientPackets)
+                    {
+                        if (packet)
+                        {
+                            delete packet;
+                        }
+                    }
+                    mClientsData.erase(aClientUniqueID);
+                }
+            }
             break;
         }
         default:
@@ -116,61 +165,101 @@ void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuf
 
 void ServerManager::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRangeValue)
 {
+    std::lock_guard<std::mutex> guard(mClientsMutex);
     auto findIt = mClientsData.find(aClientUniqueID);
     if (findIt == mClientsData.end())
     {
         auto configValue = ConfigManager::getInstance()->getConfigValue("doubles_count_to_send");
         auto doublesCount = stoi(configValue.value_or("1000000"));
-        for (auto i = 0; i <= doublesCount; i++)
+
+        std::set<double> uniqueDoubles;
+        std::vector<double> doubles;
+        doubles.reserve(doublesCount);
+        while (uniqueDoubles.size() < doublesCount)
         {
-            ClientData& clientData = mClientsData[aClientUniqueID];
-            auto addPacket = [&clientData]()
+            auto value = RandomHelper::random<double>(-aMaxRangeValue, aMaxRangeValue);
+            if (uniqueDoubles.insert(value).second)
             {
-                clientData.push_back(std::make_pair(sDoublesPacket(), false));
-                clientData.back().first.packetIndex = clientData.size() - 1;
-                clientData.back().first.doubles.reserve(MAX_DOUBLES_COUNT);
-            };
-
-            if (clientData.empty())
-            {
-                addPacket();
+                doubles.push_back(value);
             }
-            
-            if (clientData.back().first.doubles.size() == MAX_DOUBLES_COUNT)
+        }
+
+        std::vector<PacketBase<eServerMessageType>*>& clientData = mClientsData[aClientUniqueID].clientPackets;
+        auto addPacket = [&clientData](PacketBase<eServerMessageType>* aPacket)
+        {
+            if (aPacket)
             {
-                addPacket();
+                aPacket->setPacketID(clientData.size());
+                clientData.push_back(aPacket);
+            }
+        };
+
+        const auto maxDoublesCount = VectorPacket<eServerMessageType, double>::MAX_VECTOR_SIZE;
+        auto chunksCount = std::ceil(static_cast<float>(doublesCount)/ maxDoublesCount);
+
+        auto packet = new SingleValuePacket<eServerMessageType, unsigned>();
+        if (packet)
+        {
+            packet->setType(eServerMessageType::PACKETS_COUNT);
+            packet->setValue(chunksCount + 1);
+            addPacket(packet);
+        }
+
+        for (auto chunkIndex = 0; chunkIndex < chunksCount; chunkIndex++)
+        {
+            std::vector<double> singlePacketDoubles;
+            for (auto doubleInChunkIndex = 0; doubleInChunkIndex < maxDoublesCount; doubleInChunkIndex++)
+            {
+                auto doubleIndex = chunkIndex * maxDoublesCount + doubleInChunkIndex;
+                if (0 < doubleIndex && doubleIndex <= doubles.size())
+                {
+                    singlePacketDoubles.push_back(doubles[doubleIndex]);
+                }
             }
 
-            auto& doubles = clientData.back().first.doubles;
-            doubles.push_back(RandomHelper::random<double>(-aMaxRangeValue, aMaxRangeValue));
+            auto packet = new VectorPacket<eServerMessageType, double>();
+            if (packet)
+            {
+                packet->setType(eServerMessageType::DOUBLES_PACKET);
+                packet->setValue(std::move(singlePacketDoubles));
+                addPacket(packet);
+            }
         }
     }
 }
 
-void ServerManager::sendPacketToClient(ClientUniqueID aClientUniqueID, unsigned aPacketIndex)
+void ServerManager::sendPacketToClient(ClientUniqueID aClientUniqueID, const PacketBase<eServerMessageType>* aPacket)
 {
-    auto findIt = mClientsData.find(aClientUniqueID);
-    if (findIt != mClientsData.end())
+    if (aPacket)
     {
-        const auto& clientData = findIt->second;
-        if (0 <= aPacketIndex && aPacketIndex < clientData.size())
+        uint8_t* writePtr = aPacket->writeToBuffer(std::make_pair(mBuffer, MAX_BUFFER_SIZE)).first;
+
+        auto toSend = writePtr - mBuffer;
+        ssize_t sentBytes = sendto(mSocket, mBuffer, toSend, /*MSG_CONFIRM*/0, reinterpret_cast<sockaddr*>(&aClientUniqueID.first), aClientUniqueID.second);
+    }
+}
+
+void ServerManager::backgroundResending()
+{
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        auto now = std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> guard(mClientsMutex);
+        for (const auto& [clientUID, clientData]: mClientsData)
         {
-            const auto& packet = clientData[aPacketIndex].first;
-
-            uint8_t* writePtr = mBuffer;
-
-            uint32_t packetIndex = packet.packetIndex;
-            memcpy(writePtr, &packetIndex, sizeof(packetIndex));
-            writePtr += sizeof(packetIndex);
-
-            for (const auto& d: packet.doubles)
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - clientData.lastActiveTimeStamp);
+            if (duration.count() > 100)
             {
-                memcpy(writePtr, &d, sizeof(d));
-                writePtr += sizeof(d);
+                for (const auto packet: clientData.clientPackets)
+                {
+                    if (packet && !packet->isReceived())
+                    {
+                        sendPacketToClient(clientUID, packet);
+                    }
+                }
             }
-
-            auto toSend = writePtr - mBuffer;
-            ssize_t sentBytes = sendto(mSocket, mBuffer, toSend, /*MSG_CONFIRM*/0, reinterpret_cast<sockaddr*>(&aClientUniqueID.first), aClientUniqueID.second);
         }
     }
 }

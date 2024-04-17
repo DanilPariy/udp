@@ -2,21 +2,16 @@
 
 #include <vector>
 
-struct sDoublesPacket
-{
-    unsigned packetIndex;
-    std::vector<double> doubles;
-
-    sDoublesPacket()
-        : packetIndex(0)
-    {
-    }
-};
-
-enum class ePacketType
+enum class eServerMessageType
 {
     UNDEFINED = 0
-    , CLIENT_AKS_DOUBLES
-    , SERVER_SENDS_DOUBLES_PACKET
-    , CLIENT_SENDS_DOUBLES_PACKET_CONFIRMATION
+    , PACKETS_COUNT
+    , DOUBLES_PACKET
+};
+
+enum class eClientMessageType
+{
+    UNDEFINED = 0
+    , DOUBLES_RANGE_MAX
+    , PACKET_RECEIVED_CONFIRMATION
 };
