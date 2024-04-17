@@ -5,6 +5,7 @@
 enum class eServerMessageType
 {
     UNDEFINED = 0
+    , PROTOCOL_VERSION_ERROR
     , PACKETS_COUNT
     , DOUBLES_PACKET
 };

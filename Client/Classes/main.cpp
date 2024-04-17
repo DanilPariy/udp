@@ -57,7 +57,6 @@ int main()
     auto address = configAddress.value_or("0.0.0.0");
     inet_pton(AF_INET, address.c_str(), &servaddr.sin_addr);
 
-       
     uint8_t buffer[MAX_BUFFER_SIZE];
     auto doublesRangeMax = ConfigManager::getInstance()->getConfigValue("doubles_range_max");
     
