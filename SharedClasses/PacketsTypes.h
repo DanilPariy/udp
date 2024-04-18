@@ -1,6 +1,8 @@
 #pragma once
 #include <utility>
 
+#include "BufferParser.h"
+
 using CastPacketType = uint8_t;
 using PacketIdType = unsigned;
 using ProtocolVersionType = unsigned;
@@ -16,7 +18,8 @@ private:
 
 public:
     PacketBase()
-        : mType(static_cast<MessageType>(0))
+        : mProtocolVersion(0)
+        , mType(static_cast<MessageType>(0))
         , mPacketID(0)
         , mIsReceived(false)
     {
@@ -30,20 +33,65 @@ public:
         uint8_t* writePtr = aBuffer;
         const uint8_t* const firstInvalidByte = aBuffer + aBytesAvailable;
 
-        if (firstInvalidByte - writePtr >= sizeof(PacketIdType))
+        if (firstInvalidByte - writePtr >= sizeof(ProtocolVersionType))
         {
-            memcpy(writePtr, &mPacketID, sizeof(PacketIdType));
-            writePtr += sizeof(PacketIdType);
+            memcpy(writePtr, &mProtocolVersion, sizeof(ProtocolVersionType));
+            writePtr += sizeof(ProtocolVersionType);
 
-            auto cast = static_cast<CastPacketType>(mType);
-            if (firstInvalidByte - writePtr >= sizeof(CastPacketType))
+            if (firstInvalidByte - writePtr >= sizeof(PacketIdType))
             {
-                memcpy(writePtr, &cast, sizeof(CastPacketType));
-                writePtr += sizeof(CastPacketType);
+                memcpy(writePtr, &mPacketID, sizeof(PacketIdType));
+                writePtr += sizeof(PacketIdType);
+
+                auto cast = static_cast<CastPacketType>(mType);
+                if (firstInvalidByte - writePtr >= sizeof(CastPacketType))
+                {
+                    memcpy(writePtr, &cast, sizeof(CastPacketType));
+                    writePtr += sizeof(CastPacketType);
+                }
             }
         }
 
         return writePtr - aBuffer;
+    }
+
+    static std::pair<PacketBase, ssize_t> parseFromBuffer(uint8_t* aBuffer, unsigned aBytesAvailable)
+    {
+        PacketBase result;
+
+        uint8_t* readPtr = aBuffer;
+
+        {
+            auto parseProtocolVersionResult = BufferParser::parseValueFromBuffer<ProtocolVersionType>(readPtr, aBytesAvailable);
+            auto bytesRead = parseProtocolVersionResult.second;
+            readPtr += bytesRead;
+            aBytesAvailable -= bytesRead;
+
+            result.setProtocolVersion(parseProtocolVersionResult.first);
+        }
+        {
+            auto parseIdResult = BufferParser::parseValueFromBuffer<PacketIdType>(readPtr, aBytesAvailable);
+            auto bytesRead = parseIdResult.second;
+            readPtr += bytesRead;
+            aBytesAvailable -= bytesRead;
+
+            result.setPacketID(parseIdResult.first);
+        }
+        {
+            auto parseMessageTypeResult = BufferParser::parseValueFromBuffer<CastPacketType>(readPtr, aBytesAvailable);
+            auto bytesRead = parseMessageTypeResult.second;
+            readPtr += bytesRead;
+            aBytesAvailable -= bytesRead;
+
+            result.setType(static_cast<MessageType>(parseMessageTypeResult.first));
+        }
+
+        return std::make_pair(result, readPtr - aBuffer);
+    }
+
+    void setProtocolVersion(ProtocolVersionType aVersion)
+    {
+        mProtocolVersion = aVersion;
     }
 
     void setType(MessageType aType)
@@ -51,9 +99,19 @@ public:
         mType = aType;
     }
 
-    void setPacketID(unsigned aPacketID)
+    MessageType getType() const
+    {
+        return mType;
+    }
+
+    void setPacketID(PacketIdType aPacketID)
     {
         mPacketID = aPacketID;
+    }
+
+    PacketIdType getPacketID() const
+    {
+        return mPacketID;
     }
 
     void setIsReceived(bool aIsReceived)

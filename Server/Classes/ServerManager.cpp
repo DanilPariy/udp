@@ -103,20 +103,14 @@ void ServerManager::startSocket()
 
 void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuffer, ssize_t aBytesAvailable)
 {
-    uint8_t* readPtr = aBuffer;
-    auto parseIdResult = BufferParser::parseValueFromBuffer<PacketIdType>(readPtr, aBytesAvailable);
-    auto bytesRead = parseIdResult.second;
-    readPtr += bytesRead;
-    aBytesAvailable -= bytesRead;
+    PacketBase<eClientMessageType> packetBase;
+    ssize_t bytesParsed;
+    std::tie(packetBase, bytesParsed) = PacketBase<eClientMessageType>::parseFromBuffer(aBuffer, aBytesAvailable);
 
-    auto parseMessageTypeResult = BufferParser::parseValueFromBuffer<CastPacketType>(readPtr, aBytesAvailable);
-    bytesRead = parseMessageTypeResult.second;
-    readPtr += bytesRead;
-    aBytesAvailable -= bytesRead;
+    uint8_t* readPtr = aBuffer + bytesParsed;
+    aBytesAvailable -= bytesParsed;
 
-    auto casted = static_cast<eClientMessageType>(parseMessageTypeResult.first);
-
-    switch (casted)
+    switch (packetBase.getType())
     {
         case eClientMessageType::DOUBLES_RANGE_MAX:
         {
@@ -138,7 +132,7 @@ void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuf
         case eClientMessageType::PACKET_RECEIVED_CONFIRMATION:
         {
             std::lock_guard<std::mutex> guard(mClientsMutex);
-            auto packetIndex = parseIdResult.first;
+            auto packetIndex = packetBase.getPacketID();
             auto findIt = mClientsData.find(aClientUniqueID);
             if (findIt != mClientsData.end())
             {
