@@ -31,13 +31,25 @@ ServerManager::ServerManager()
 
 ServerManager::~ServerManager()
 {
-    if (mSocket)
+    std::lock_guard<std::mutex> guard(mClientsMutex);
+    for (auto& [clientUID, clientData]: mClientsData)
     {
-        close(mSocket);
+        for (auto packet: clientData.clientPackets)
+        {
+            if (packet)
+            {
+                delete packet;
+            }
+        }
+        clientData.clientPackets.clear();
     }
     if (mResendThread.joinable())
     {
         mResendThread.join();
+    }
+    if (mSocket)
+    {
+        close(mSocket);
     }
 }
 
@@ -232,10 +244,8 @@ void ServerManager::sendPacketToClient(ClientUniqueID aClientUniqueID, const Pac
 {
     if (aPacket)
     {
-        uint8_t* writePtr = aPacket->writeToBuffer(std::make_pair(mBuffer, MAX_BUFFER_SIZE)).first;
-
-        auto toSend = writePtr - mBuffer;
-        ssize_t sentBytes = sendto(mSocket, mBuffer, toSend, /*MSG_CONFIRM*/0, reinterpret_cast<sockaddr*>(&aClientUniqueID.first), aClientUniqueID.second);
+        auto bytesWrote = aPacket->writeToBuffer(mBuffer, MAX_BUFFER_SIZE);
+        ssize_t sentBytes = sendto(mSocket, mBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<sockaddr*>(&aClientUniqueID.first), aClientUniqueID.second);
     }
 }
 

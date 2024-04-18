@@ -23,8 +23,8 @@ ssize_t sendDoublesRequest(int aSocket, uint8_t* aBuffer, const sockaddr_in& aSe
     packet.setType(eClientMessageType::DOUBLES_RANGE_MAX);
     packet.setValue(aDoublesRangeMax);
 
-    uint8_t* b = packet.writeToBuffer(std::make_pair(aBuffer, MAX_BUFFER_SIZE)).first;
-    return sendto(aSocket, aBuffer, b - aBuffer, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
+    auto bytesWrote = packet.writeToBuffer(aBuffer, MAX_BUFFER_SIZE);
+    return sendto(aSocket, aBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
 }
 
 ssize_t sendPacketReceivedConfirmation(int aSocket, uint8_t* aBuffer, const sockaddr_in& aServerAddress, unsigned aPacketID)
@@ -33,8 +33,8 @@ ssize_t sendPacketReceivedConfirmation(int aSocket, uint8_t* aBuffer, const sock
     packet.setType(eClientMessageType::PACKET_RECEIVED_CONFIRMATION);
     packet.setPacketID(aPacketID);
 
-    uint8_t* b = packet.writeToBuffer(std::make_pair(aBuffer, MAX_BUFFER_SIZE)).first;
-    return sendto(aSocket, aBuffer, b - aBuffer, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
+    auto bytesWrote = packet.writeToBuffer(aBuffer, MAX_BUFFER_SIZE);
+    return sendto(aSocket, aBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
 }
 
 int main()
@@ -72,35 +72,45 @@ int main()
                 while (true)
                 {
                     socklen_t len = 0;
-                    ssize_t numBytesReceived = recvfrom(socketResult, buffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&servaddr), &len);
+                    ssize_t bytesAvailable = recvfrom(socketResult, buffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&servaddr), &len);
                     uint8_t* readPtr = buffer;
-                    auto parseIdResult = BufferParser::parseValueFromBuffer<PacketIdType>(readPtr, numBytesReceived);
+                    auto parseIdResult = BufferParser::parseValueFromBuffer<PacketIdType>(readPtr, bytesAvailable);
                     auto bytesRead = parseIdResult.second;
                     readPtr += bytesRead;
-                    numBytesReceived -= bytesRead;
+                    bytesAvailable -= bytesRead;
 
-                    auto parseMessageTypeResult = BufferParser::parseValueFromBuffer<CastPacketType>(readPtr, numBytesReceived);
+                    auto parseMessageTypeResult = BufferParser::parseValueFromBuffer<CastPacketType>(readPtr, bytesAvailable);
                     bytesRead = parseMessageTypeResult.second;
                     readPtr += bytesRead;
-                    numBytesReceived -= bytesRead;
+                    bytesAvailable -= bytesRead;
 
                     auto casted = static_cast<eServerMessageType>(parseMessageTypeResult.first);
 
-                    if (casted == eServerMessageType::PACKETS_COUNT)
+                    switch (casted)
                     {
-                        receivedPacketsIDs.insert(parseIdResult.first);
-                        packetsCount = BufferParser::parseValueFromBuffer<unsigned>(readPtr, numBytesReceived).first;
-                        sendPacketReceivedConfirmation(socketResult, buffer, servaddr, parseIdResult.first);
-                    }
-                    else if (casted == eServerMessageType::DOUBLES_PACKET)
-                    {
-                        auto insertResult = receivedPacketsIDs.insert(parseIdResult.first);
-                        if (insertResult.second)
+                        case eServerMessageType::PACKETS_COUNT:
                         {
-                            auto vector = BufferParser::parseVectorFromBuffer<double>(readPtr, numBytesReceived).first;
-                            std::copy(vector.begin(), vector.end(), std::back_inserter(receivedDoubles));
+                            auto insertResult = receivedPacketsIDs.insert(parseIdResult.first);
+                            if (insertResult.second)
+                            {
+                                packetsCount = BufferParser::parseValueFromBuffer<unsigned>(readPtr, bytesAvailable).first;
+                            }
+                            sendPacketReceivedConfirmation(socketResult, buffer, servaddr, parseIdResult.first);
+                            break;
                         }
-                        sendPacketReceivedConfirmation(socketResult, buffer, servaddr, parseIdResult.first);
+                        case eServerMessageType::DOUBLES_PACKET:
+                        {
+                            auto insertResult = receivedPacketsIDs.insert(parseIdResult.first);
+                            if (insertResult.second)
+                            {
+                                auto vector = BufferParser::parseVectorFromBuffer<double>(readPtr, bytesAvailable).first;
+                                std::copy(vector.begin(), vector.end(), std::back_inserter(receivedDoubles));
+                            }
+                            sendPacketReceivedConfirmation(socketResult, buffer, servaddr, parseIdResult.first);
+                            break;
+                        }
+                        default:
+                            break;
                     }
 
                     if (receivedPacketsIDs.size() == packetsCount && packetsCount != 0)

@@ -1,14 +1,15 @@
 #pragma once
 #include <utility>
 
-using Buffer = std::pair<uint8_t*, unsigned>;
 using CastPacketType = uint8_t;
 using PacketIdType = unsigned;
+using ProtocolVersionType = unsigned;
 
 template <typename MessageType>
 class PacketBase
 {
 private:
+    ProtocolVersionType mProtocolVersion;
     PacketIdType mPacketID;
     MessageType mType;
     bool mIsReceived;
@@ -24,27 +25,25 @@ public:
     {
     }
 
-    virtual Buffer writeToBuffer(Buffer aBuffer) const
+    virtual unsigned writeToBuffer(uint8_t* aBuffer, unsigned aBytesAvailable) const
     {
-        uint8_t* writePtr = aBuffer.first;
-        unsigned bytesAvailable = aBuffer.second;
+        uint8_t* writePtr = aBuffer;
+        const uint8_t* const firstInvalidByte = aBuffer + aBytesAvailable;
 
-        if (bytesAvailable >= sizeof(PacketIdType))
+        if (firstInvalidByte - writePtr >= sizeof(PacketIdType))
         {
             memcpy(writePtr, &mPacketID, sizeof(PacketIdType));
             writePtr += sizeof(PacketIdType);
-            bytesAvailable -= sizeof(PacketIdType);
 
             auto cast = static_cast<CastPacketType>(mType);
-            if (bytesAvailable >= sizeof(CastPacketType))
+            if (firstInvalidByte - writePtr >= sizeof(CastPacketType))
             {
                 memcpy(writePtr, &cast, sizeof(CastPacketType));
                 writePtr += sizeof(CastPacketType);
-                bytesAvailable -= sizeof(CastPacketType);
             }
         }
 
-        return std::make_pair(writePtr, bytesAvailable);
+        return writePtr - aBuffer;
     }
 
     void setType(MessageType aType)
@@ -81,21 +80,20 @@ public:
     {
     }
 
-    virtual Buffer writeToBuffer(Buffer aBuffer) const override
+    virtual unsigned writeToBuffer(uint8_t* aBuffer, unsigned aBytesAvailable) const override
     {
-        auto baseWriteRes = PacketBase<MessageType>::writeToBuffer(aBuffer);
+        auto bytesWrote = PacketBase<MessageType>::writeToBuffer(aBuffer, aBytesAvailable);
 
-        uint8_t* writePtr = baseWriteRes.first;
-        unsigned bytesAvailable = baseWriteRes.second;
+        uint8_t* writePtr = aBuffer + bytesWrote;
+        const uint8_t* const firstInvalidByte = aBuffer + aBytesAvailable;
 
-        if (bytesAvailable >= sizeof(ValueType))
+        if (firstInvalidByte - writePtr >= sizeof(ValueType))
         {
             memcpy(writePtr, &mValue, sizeof(ValueType));
             writePtr += sizeof(ValueType);
-            bytesAvailable -= sizeof(ValueType);
         }
 
-        return std::make_pair(writePtr, bytesAvailable);
+        return writePtr - aBuffer;
     }
 
     void setValue(ValueType aValue)
@@ -120,22 +118,23 @@ public:
     {
     }
 
-    virtual Buffer writeToBuffer(Buffer aBuffer) const override
+    virtual unsigned writeToBuffer(uint8_t* aBuffer, unsigned aBytesAvailable) const override
     {
-        auto baseWriteRes = PacketBase<MessageType>::writeToBuffer(aBuffer);
+        auto bytesWrote = PacketBase<MessageType>::writeToBuffer(aBuffer, aBytesAvailable);
 
-        uint8_t* writePtr = baseWriteRes.first;
-        unsigned bytesAvailable = baseWriteRes.second;
+        uint8_t* writePtr = aBuffer + bytesWrote;
+        const uint8_t* const firstInvalidByte = aBuffer + aBytesAvailable;
 
-        if (bytesAvailable >= sizeof(ValueType))
+        if (firstInvalidByte - writePtr >= sizeof(ValueType))
         {
-            auto bytesCanWrite = std::min(bytesAvailable, static_cast<unsigned>(mValue.size() * sizeof(ValueType)));
+            auto bytesAvailable = firstInvalidByte - writePtr;
+            auto bytesNeeded = static_cast<long>(mValue.size() * sizeof(ValueType));
+            auto bytesCanWrite = std::min(bytesAvailable, bytesNeeded);
             std::memcpy(writePtr, mValue.data(), bytesCanWrite);
             writePtr += bytesCanWrite;
-            bytesAvailable -= bytesCanWrite;
         }
 
-        return std::make_pair(writePtr, bytesAvailable);
+        return writePtr - aBuffer;
     }
 
     void setValue(std::vector<ValueType>&& aValue)
