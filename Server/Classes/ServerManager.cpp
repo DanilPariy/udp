@@ -273,10 +273,22 @@ void ServerManager::backgroundResending()
 
         auto now = std::chrono::steady_clock::now();
         std::lock_guard<std::mutex> guard(mClientsMutex);
+        std::vector<ClientUniqueID> toErase;
         for (const auto& [clientUID, clientData]: mClientsData)
         {
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - clientData.lastActiveTimeStamp);
-            if (duration.count() > 100)
+            if (duration.count() > 10000)
+            {
+                for (auto packet: clientData.clientPackets)
+                {
+                    if (packet)
+                    {
+                        delete packet;
+                    }
+                }
+                toErase.push_back(clientUID);
+            }
+            else if (duration.count() > 100)
             {
                 for (const auto packet: clientData.clientPackets)
                 {
@@ -286,6 +298,10 @@ void ServerManager::backgroundResending()
                     }
                 }
             }
+        }
+        for (const auto& clientUID: toErase)
+        {
+            mClientsData.erase(clientUID);
         }
     }
 }
