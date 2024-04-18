@@ -68,6 +68,7 @@ bool ServerManager::openSocket()
     }
 
     ConfigManager::getInstance()->parseConfig("server_config.txt");
+    mServerProtocolVersion = stoi(ConfigManager::getInstance()->getConfigValue("protocol_version").value_or("0"));
     const auto configAddress = ConfigManager::getInstance()->getConfigValue("address");
     auto port = ConfigManager::getInstance()->getConfigValue("port");
 
@@ -109,6 +110,25 @@ void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuf
 
     uint8_t* readPtr = aBuffer + bytesParsed;
     aBytesAvailable -= bytesParsed;
+
+    if (packetBase.getProtocolVersion() < mServerProtocolVersion)
+    {
+        std::lock_guard<std::mutex> guard(mClientsMutex);
+        auto findIt = mClientsData.find(aClientUniqueID);
+        if (findIt == mClientsData.end())
+        {
+            std::vector<PacketBase<eServerMessageType>*>& clientData = mClientsData[aClientUniqueID].clientPackets;
+            auto packet = new PacketBase<eServerMessageType>();
+            if (packet)
+            {
+                packet->setProtocolVersion(mServerProtocolVersion);
+                packet->setType(eServerMessageType::PROTOCOL_VERSION_ERROR);
+                clientData.push_back(packet);
+                sendPacketToClient(aClientUniqueID, packet);
+            }
+        }
+        return;
+    }
 
     switch (packetBase.getType())
     {
@@ -206,6 +226,7 @@ void ServerManager::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRa
         auto packet = new SingleValuePacket<eServerMessageType, unsigned>();
         if (packet)
         {
+            packet->setProtocolVersion(mServerProtocolVersion);
             packet->setType(eServerMessageType::PACKETS_COUNT);
             packet->setValue(chunksCount + 1);
             addPacket(packet);
@@ -226,6 +247,7 @@ void ServerManager::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRa
             auto packet = new VectorPacket<eServerMessageType, double>();
             if (packet)
             {
+                packet->setProtocolVersion(mServerProtocolVersion);
                 packet->setType(eServerMessageType::DOUBLES_PACKET);
                 packet->setValue(std::move(singlePacketDoubles));
                 addPacket(packet);

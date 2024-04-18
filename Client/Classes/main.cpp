@@ -22,6 +22,7 @@ ssize_t sendDoublesRequest(int aSocket, uint8_t* aBuffer, const sockaddr_in& aSe
     SingleValuePacket<eClientMessageType, double> packet;
     packet.setType(eClientMessageType::DOUBLES_RANGE_MAX);
     packet.setValue(aDoublesRangeMax);
+    packet.setProtocolVersion(stoi(ConfigManager::getInstance()->getConfigValue("protocol_version").value_or("0")));
 
     auto bytesWrote = packet.writeToBuffer(aBuffer, MAX_BUFFER_SIZE);
     return sendto(aSocket, aBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
@@ -32,6 +33,7 @@ ssize_t sendPacketReceivedConfirmation(int aSocket, uint8_t* aBuffer, const sock
     PacketBase<eClientMessageType> packet;
     packet.setType(eClientMessageType::PACKET_RECEIVED_CONFIRMATION);
     packet.setPacketID(aPacketID);
+    packet.setProtocolVersion(stoi(ConfigManager::getInstance()->getConfigValue("protocol_version").value_or("0")));
 
     auto bytesWrote = packet.writeToBuffer(aBuffer, MAX_BUFFER_SIZE);
     return sendto(aSocket, aBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
@@ -42,7 +44,8 @@ void processMessages(int aSocket, uint8_t* aBuffer, sockaddr_in& aServerAddress)
     unsigned totalPacketsCount = 0;
     std::set<PacketIdType> receivedPacketsIDs;
     std::vector<double> receivedDoubles;
-    while (true)
+    bool isProcessing = true;
+    while (isProcessing)
     {
         socklen_t len = 0;
         ssize_t bytesAvailable = recvfrom(aSocket, aBuffer, MAX_BUFFER_SIZE, MSG_WAITALL, reinterpret_cast<sockaddr*>(&aServerAddress), &len);
@@ -56,6 +59,13 @@ void processMessages(int aSocket, uint8_t* aBuffer, sockaddr_in& aServerAddress)
 
         switch (packetBase.getType())
         {
+            case eServerMessageType::PROTOCOL_VERSION_ERROR:
+            {
+                std::cout << "Server has newer protocol version (" << packetBase.getProtocolVersion() << ").\n";
+                sendPacketReceivedConfirmation(aSocket, aBuffer, aServerAddress, packetBase.getPacketID());
+                isProcessing = false;
+                break;
+            }
             case eServerMessageType::PACKETS_COUNT:
             {
                 auto insertResult = receivedPacketsIDs.insert(packetBase.getPacketID());
@@ -95,8 +105,8 @@ void processMessages(int aSocket, uint8_t* aBuffer, sockaddr_in& aServerAddress)
                 }
                 file.close();
             }
-
-            break;
+            
+            isProcessing = false;
         }
     }
 }

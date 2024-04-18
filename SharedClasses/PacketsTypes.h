@@ -94,6 +94,11 @@ public:
         mProtocolVersion = aVersion;
     }
 
+    ProtocolVersionType getProtocolVersion() const
+    {
+        return mProtocolVersion;
+    }
+
     void setType(MessageType aType)
     {
         mType = aType;

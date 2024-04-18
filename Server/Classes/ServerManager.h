@@ -33,6 +33,7 @@ private:
     std::map<ClientUniqueID, sClientData> mClientsData;
     
     std::thread mResendThread;
+    ProtocolVersionType mServerProtocolVersion;
 
 private:
     ServerManager();
