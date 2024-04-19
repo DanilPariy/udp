@@ -5,6 +5,4 @@ builds-unix/cmake_install.cmake
 builds-unix/data.bin
 builds-unix/Makefile
 builds-unix/SharedClasses
-.DS_Store
-*/.DS_Store
-*/*/.DS_Store
+**/.DS_Store
