@@ -11,5 +11,5 @@ add_subdirectory(SharedClasses)
 add_executable(client Client/Classes/main.cpp)
 target_link_libraries(client PRIVATE Config)
 
-add_executable(server Server/Classes/main.cpp Server/Classes/ServerManager.cpp)
+add_executable(server Server/Classes/main.cpp Server/Classes/UdpServer.cpp)
 target_link_libraries(server PRIVATE Config)
