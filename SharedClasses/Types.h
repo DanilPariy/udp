@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 enum class eServerMessageType
 {
     UNDEFINED = 0
