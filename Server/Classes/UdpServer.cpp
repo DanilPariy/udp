@@ -25,7 +25,6 @@ bool operator<(const ClientUniqueID &lhs, const ClientUniqueID &rhs)
 }
 
 UdpServer::UdpServer()
-    : mServerConfig(nullptr)
 {
 }
 
@@ -61,11 +60,10 @@ bool UdpServer::openSocket()
         return false;
     }
 
-    mServerConfig = std::make_unique<Config>();
-    mServerConfig->parseConfig("server_config.txt");
-    mServerProtocolVersion = stoi(mServerConfig->getConfigValue("protocol_version").value_or("0"));
-    const auto configAddress = mServerConfig->getConfigValue("address");
-    auto port = mServerConfig->getConfigValue("port");
+    mServerConfig.parseConfig("server_config.txt");
+    mServerProtocolVersion = stoi(mServerConfig.getConfigValue("protocol_version").value_or("0"));
+    const auto configAddress = mServerConfig.getConfigValue("address");
+    auto port = mServerConfig.getConfigValue("port");
 
     sockaddr_in servaddr;
     memset(&servaddr, 0, sizeof(servaddr));
@@ -190,7 +188,7 @@ void UdpServer::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRangeV
     auto findIt = mClientsData.find(aClientUniqueID);
     if (findIt == mClientsData.end())
     {
-        auto configValue = mServerConfig->getConfigValue("doubles_count_to_send");
+        auto configValue = mServerConfig.getConfigValue("doubles_count_to_send");
         auto doublesCount = stoi(configValue.value_or("1000000"));
 
         std::set<double> uniqueDoubles;

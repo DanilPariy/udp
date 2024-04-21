@@ -28,7 +28,7 @@ private:
         std::chrono::time_point<std::chrono::steady_clock> lastActiveTimeStamp;
     };
 
-    std::unique_ptr<Config> mServerConfig;
+    Config mServerConfig;
 
     int mSocket;
     uint8_t mBuffer[MAX_BUFFER_SIZE];
