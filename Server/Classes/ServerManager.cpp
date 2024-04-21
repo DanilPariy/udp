@@ -25,11 +25,11 @@ bool operator<(const ClientUniqueID &lhs, const ClientUniqueID &rhs)
     return lhs.second < rhs.second;
 }
 
-ServerManager::ServerManager()
+UdpServer::UdpServer()
 {
 }
 
-ServerManager::~ServerManager()
+UdpServer::~UdpServer()
 {
     std::lock_guard<std::mutex> guard(mClientsMutex);
     for (auto& [clientUID, clientData]: mClientsData)
@@ -53,13 +53,7 @@ ServerManager::~ServerManager()
     }
 }
 
-ServerManager* ServerManager::getInstance()
-{
-    static ServerManager instance;
-    return &instance;
-}
-
-bool ServerManager::openSocket()
+bool UdpServer::openSocket()
 {
     mSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (mSocket < 0)
@@ -87,13 +81,13 @@ bool ServerManager::openSocket()
     return true;
 }
 
-void ServerManager::startSocket()
+void UdpServer::startSocket()
 {
     sockaddr_in cliaddr;
     memset(&cliaddr, 0, sizeof(cliaddr));
     socklen_t len = sizeof(cliaddr);
 
-    mResendThread = std::thread(&ServerManager::backgroundResending, this);
+    mResendThread = std::thread(&UdpServer::backgroundResending, this);
 
     while (true)
     {
@@ -102,7 +96,7 @@ void ServerManager::startSocket()
     }
 }
 
-void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuffer, ssize_t aBytesAvailable)
+void UdpServer::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuffer, ssize_t aBytesAvailable)
 {
     PacketBase<eClientMessageType> packetBase;
     ssize_t bytesParsed;
@@ -189,7 +183,7 @@ void ServerManager::processRequest(ClientUniqueID aClientUniqueID, uint8_t* aBuf
     }
 }
 
-void ServerManager::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRangeValue)
+void UdpServer::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRangeValue)
 {
     std::lock_guard<std::mutex> guard(mClientsMutex);
     auto findIt = mClientsData.find(aClientUniqueID);
@@ -256,7 +250,7 @@ void ServerManager::makeClientData(ClientUniqueID aClientUniqueID, double aMaxRa
     }
 }
 
-void ServerManager::sendPacketToClient(ClientUniqueID aClientUniqueID, const PacketBase<eServerMessageType>* aPacket)
+void UdpServer::sendPacketToClient(ClientUniqueID aClientUniqueID, const PacketBase<eServerMessageType>* aPacket)
 {
     if (aPacket)
     {
@@ -265,7 +259,7 @@ void ServerManager::sendPacketToClient(ClientUniqueID aClientUniqueID, const Pac
     }
 }
 
-void ServerManager::backgroundResending()
+void UdpServer::backgroundResending()
 {
     while (true)
     {

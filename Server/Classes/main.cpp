@@ -6,13 +6,14 @@
 
 int main()
 {
-    if (!ServerManager::getInstance()->openSocket())
+    UdpServer server;
+    if (!server.openSocket())
     {
         perror("socket creation/binding failed");
         exit(EXIT_FAILURE);
     }
 
-    ServerManager::getInstance()->startSocket();
+    server.startSocket();
     
     return 0;
 }

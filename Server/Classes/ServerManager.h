@@ -18,7 +18,7 @@ using ClientUniqueID = std::pair<sockaddr_in, socklen_t>;
 
 bool operator<(const ClientUniqueID &lhs, const ClientUniqueID &rhs);
 
-class ServerManager
+class UdpServer
 {
 private:
     struct sClientData
@@ -36,13 +36,12 @@ private:
     ProtocolVersionType mServerProtocolVersion;
 
 private:
-    ServerManager();
-    ServerManager(const ServerManager&);
+    UdpServer(const UdpServer&) = delete;
+    UdpServer& operator=(const UdpServer&) = delete;
 
 public:
-    ~ServerManager();
-
-    static ServerManager* getInstance();
+    UdpServer();
+    ~UdpServer();
 
     bool openSocket();
     void startSocket();
