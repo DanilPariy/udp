@@ -12,6 +12,7 @@
 #include <thread>
 
 #include "Constants.h"
+#include "Config.h"
 #include "PacketsTypes.h"
 
 using ClientUniqueID = std::pair<sockaddr_in, socklen_t>;
@@ -26,6 +27,8 @@ private:
         std::vector<PacketBase<eServerMessageType>*> clientPackets;
         std::chrono::time_point<std::chrono::steady_clock> lastActiveTimeStamp;
     };
+
+    std::unique_ptr<Config> mServerConfig;
 
     int mSocket;
     uint8_t mBuffer[MAX_BUFFER_SIZE];

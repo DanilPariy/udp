@@ -2,20 +2,18 @@
 #include <map>
 #include <optional>
 
-class ConfigManager
+class Config
 {
 private:
     std::map<std::string, std::string> mData;
 
 private:
-    ConfigManager();
-    ConfigManager(const ConfigManager&) = delete;
-    ConfigManager& operator=(const ConfigManager&) = delete;
+    Config(const Config&) = delete;
+    Config& operator=(const Config&) = delete;
 
 public:
-    ~ConfigManager();
-
-    static ConfigManager* getInstance();
+    Config();
+    ~Config();
 
     void parseConfig(const std::string& aConfigFilePath);
 

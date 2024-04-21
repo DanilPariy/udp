@@ -1,3 +1,3 @@
-add_library(ConfigManager ConfigManager.cpp)
+add_library(Config Config.cpp)
 
-target_include_directories(ConfigManager PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(Config PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

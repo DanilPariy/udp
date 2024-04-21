@@ -14,15 +14,17 @@
 #include "Constants.h"
 #include "BufferParser.h"
 #include "Types.h"
-#include "ConfigManager.h"
+#include "Config.h"
 #include "PacketsTypes.h"
+
+std::unique_ptr<Config> mClientConfig = nullptr;
 
 ssize_t sendDoublesRequest(int aSocket, uint8_t* aBuffer, const sockaddr_in& aServerAddress, double aDoublesRangeMax)
 {
     SingleValuePacket<eClientMessageType, double> packet;
     packet.setType(eClientMessageType::DOUBLES_RANGE_MAX);
     packet.setValue(aDoublesRangeMax);
-    packet.setProtocolVersion(stoi(ConfigManager::getInstance()->getConfigValue("protocol_version").value_or("0")));
+    packet.setProtocolVersion(stoi(mClientConfig->getConfigValue("protocol_version").value_or("0")));
 
     auto bytesWrote = packet.writeToBuffer(aBuffer, MAX_BUFFER_SIZE);
     return sendto(aSocket, aBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
@@ -33,7 +35,7 @@ ssize_t sendPacketReceivedConfirmation(int aSocket, uint8_t* aBuffer, const sock
     PacketBase<eClientMessageType> packet;
     packet.setType(eClientMessageType::PACKET_RECEIVED_CONFIRMATION);
     packet.setPacketID(aPacketID);
-    packet.setProtocolVersion(stoi(ConfigManager::getInstance()->getConfigValue("protocol_version").value_or("0")));
+    packet.setProtocolVersion(stoi(mClientConfig->getConfigValue("protocol_version").value_or("0")));
 
     auto bytesWrote = packet.writeToBuffer(aBuffer, MAX_BUFFER_SIZE);
     return sendto(aSocket, aBuffer, bytesWrote, /*MSG_CONFIRM*/0, reinterpret_cast<const sockaddr*>(&aServerAddress), sizeof(aServerAddress));
@@ -119,10 +121,11 @@ int main()
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
-   
-    ConfigManager::getInstance()->parseConfig("client_config.txt");
-    const auto configAddress = ConfigManager::getInstance()->getConfigValue("address");
-    const auto port = ConfigManager::getInstance()->getConfigValue("port");
+
+    mClientConfig = std::make_unique<Config>();
+    mClientConfig->parseConfig("client_config.txt");
+    const auto configAddress = mClientConfig->getConfigValue("address");
+    const auto port = mClientConfig->getConfigValue("port");
 
     sockaddr_in servaddr;
     memset(&servaddr, 0, sizeof(servaddr));
@@ -136,7 +139,7 @@ int main()
     auto th = std::thread([socketResult, &servaddr]()
         {
             uint8_t buffer[MAX_BUFFER_SIZE];
-            auto doublesRangeMax = ConfigManager::getInstance()->getConfigValue("doubles_range_max");
+            auto doublesRangeMax = mClientConfig->getConfigValue("doubles_range_max");
             auto sendRes = sendDoublesRequest(socketResult, buffer, servaddr, stod(doublesRangeMax.value_or("100")));
             if (sendRes > 0)
             {

@@ -1,26 +1,20 @@
-#include "ConfigManager.h"
+#include "Config.h"
 
 #include <fstream>
 #include <string>
 #include <iostream>
 
-ConfigManager::ConfigManager()
+Config::Config()
 {
 
 }
 
-ConfigManager::~ConfigManager()
+Config::~Config()
 {
     
 }
 
-ConfigManager* ConfigManager::getInstance()
-{
-    static ConfigManager instance;
-    return &instance;
-}
-
-void ConfigManager::parseConfig(const std::string& aConfigFilePath)
+void Config::parseConfig(const std::string& aConfigFilePath)
 {
     std::ifstream file(aConfigFilePath);
 
@@ -39,7 +33,7 @@ void ConfigManager::parseConfig(const std::string& aConfigFilePath)
     file.close();
 }
 
-std::optional<std::string> ConfigManager::getConfigValue(const std::string& aConfigValueName)
+std::optional<std::string> Config::getConfigValue(const std::string& aConfigValueName)
 {
     std::optional<std::string> result = std::nullopt;
 

@@ -9,7 +9,7 @@ include_directories(SharedClasses)
 add_subdirectory(SharedClasses)
 
 add_executable(client Client/Classes/main.cpp)
-target_link_libraries(client PRIVATE ConfigManager)
+target_link_libraries(client PRIVATE Config)
 
 add_executable(server Server/Classes/main.cpp Server/Classes/ServerManager.cpp)
-target_link_libraries(server PRIVATE ConfigManager)
+target_link_libraries(server PRIVATE Config)
